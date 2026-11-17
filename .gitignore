@@ -1,0 +1,19 @@
+.build/
+dist/
+.DS_Store
+.swiftpm/
+
+# Local agent settings can contain user-specific paths and commands.
+.kiro/
+.claude/
+.codex/
+.agents/
+
+# Runtime files, configuration backups and local secrets.
+*.mx-noti.lock
+*.mx-noti-backup-*
+*.log
+*.dSYM/
+.env
+.env.*
+!.env.example
