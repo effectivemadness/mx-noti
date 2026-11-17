@@ -29,7 +29,15 @@ cd mx-noti
 
 읽는 대상은 알림 센터의 표시 중인 알림입니다. 채팅 창의 대화 내용을 스캔하거나 알림 데이터베이스를 읽지 않습니다. 알림 문구로 완료·승인·입력 대기를 추정하며, 구분할 수 없는 알림은 **앱 알림** 패턴을 사용합니다. 알림 원문은 저장하지 않습니다. macOS의 손쉬운 사용 화면 구조에 의존하므로 OS 업데이트에 따라 달라질 수 있습니다.
 
-현재 `Codex` 연결은 `~/.codex/hooks.json`의 엔진 훅입니다. CLI 외에 훅을 지원하는 데스크톱 Codex 작업에도 적용됩니다. ChatGPT 일반 대화의 앱 알림은 위의 별도 배너 감지를 사용합니다. 훅과 배너를 같은 작업에 모두 켜면 중복 진동이 발생할 수 있습니다.
+현재 `Codex` 연결은 `~/.codex/hooks.json`의 완료·입력 대기 훅입니다. CLI 외에 훅을 지원하는 데스크톱 Codex 작업에도 적용됩니다. ChatGPT 일반 대화의 앱 알림은 위의 별도 배너 감지를 사용합니다. 훅과 배너를 같은 작업에 모두 켜면 중복 진동이 발생할 수 있습니다.
+
+### Codex의 자동 승인과 승인 알림
+
+`PermissionRequest`는 승인 검토가 시작되기 전에 발생하므로 `Approve for me`의 자동 검토나 다른 훅의 자동 허용에서도 실행될 수 있습니다. 사람이 실제로 확인해야 하는 상태를 뜻하지 않습니다. 버전 0.2.1부터 Codex의 이 훅을 승인 알림에 사용하지 않습니다. 이전 실행 파일이 수신함에 남긴 같은 종류의 이벤트도 무시합니다.
+
+Codex 데스크톱의 승인 알림은 실제 사용자 확인 알림 배너가 표시될 때 **ChatGPT 앱** 연결로 받습니다. CLI에서 수동 승인 프롬프트만 뜨는 경우의 승인 진동은 현재 지원하지 않습니다. 응답 완료와 입력 대기 훅은 유지됩니다.
+
+기존 설치는 **앱 연결 → Codex → 연결 갱신** 또는 `--install-hooks codex`로 MX Noti의 이전 승인 훅만 제거할 수 있습니다. 다른 프로그램의 승인 훅과 Codex 자체 승인 정책은 변경하지 않습니다.
 
 개발용 서명 앱을 다시 빌드하거나 갱신한 뒤 macOS가 접근을 거부하면 입력 모니터링·손쉬운 사용 권한을 다시 허용하고 앱을 재실행해야 할 수 있습니다.
 
@@ -40,7 +48,7 @@ cd mx-noti
 | 도구 | 응답 완료 | 승인 요청 | 입력 대기 / 오류 | 연결 방식 |
 |---|---|---|---|---|
 | Claude Code | `Stop` | `PermissionRequest` | `Notification`, `AskUserQuestion` / `StopFailure` | 사용자 설정의 훅에 추가 |
-| Codex CLI·데스크톱 작업 | `Stop` | `PermissionRequest` | `request_user_input` 계열 도구 / 전용 오류 훅 미연결 | 사용자 `hooks.json`, 새 훅 검토·허용 필요 |
+| Codex CLI·데스크톱 작업 | `Stop` | 데스크톱 앱의 실제 승인 배너, CLI 승인 훅 미지원 | `request_user_input` 계열 도구 / 전용 오류 훅 미연결 | 사용자 `hooks.json` + 앱 배너 감지 |
 | ChatGPT 앱 | 알림 문구로 추정 | 알림 문구·버튼으로 추정 | 알림 문구로 추정 | macOS 알림 배너, 손쉬운 사용 권한 필요 |
 | Claude 앱 | 알림 문구로 추정 | 알림 문구·버튼으로 추정 | 알림 문구로 추정 | macOS 알림 배너, 손쉬운 사용 권한 필요 |
 | Kiro CLI V3 | `Stop` | 전용 승인 훅 미지원 | 도구 이름이 알려진 질문만 구분 / 오류 미연결 | `~/.kiro/hooks/mx-noti.json` |
@@ -119,7 +127,7 @@ open "dist/MX Noti.app"
 
 자동 테스트는 장치 없이 HID++ 응답 구분, 기능 비트맵, 이벤트 분류, 중복·오래된 알림 제거, 수신함, 설정 병합·백업·해제, 로그 어댑터와 파일 교체 처리를 검증합니다. 실제 진동은 입력 모니터링 권한을 허용한 MX Master 4에서 별도로 확인해야 합니다.
 
-버전 0.2.0의 자동 테스트 14개가 통과했습니다. 앱 알림의 출처 구분, 완료·승인·입력 대기 분류, 초기 배너 및 중복 배너 제외, 원문 미저장, 기존 설정 이전을 포함합니다. 동시 훅 입력 12건, GUI의 실제 마우스 재생 응답, ChatGPT macOS 배너 수신부터 마우스 재생 명령 응답까지 확인했습니다. Claude 앱의 실제 배너 수신은 아직 별도 확인이 필요합니다.
+버전 0.2.1의 자동 테스트 17개가 통과했습니다. 앱 알림의 출처 구분, 완료·승인·입력 대기 분류, 초기·중복 배너 제외, 원문 미저장, 설정 이전, Codex의 사전 승인 훅 및 구버전 승인 이벤트 제외를 포함합니다. 동시 훅 입력 12건, GUI의 실제 마우스 재생 응답, ChatGPT macOS 배너 수신부터 마우스 재생 명령 응답까지 확인했습니다. Claude 앱의 실제 배너 수신은 아직 별도 확인이 필요합니다.
 
 ## 조사한 프로젝트와 공식 문서
 
@@ -128,6 +136,7 @@ open "dist/MX Noti.app"
 - [claude-code-logitech-haptic-plugin](https://github.com/ChefJodlak/claude-code-logitech-haptic-plugin): Claude 훅 → HapticWeb의 로컬 API → Logi Options+ 플러그인.
 - [Claude Code Hooks](https://code.claude.com/docs/en/hooks)
 - [Codex Hooks](https://learn.chatgpt.com/docs/hooks)
+- [Codex Auto-review](https://learn.chatgpt.com/docs/sandboxing/auto-review)
 - [ChatGPT Notifications](https://learn.chatgpt.com/docs/notifications)
 - [agent-desktop 알림 스캔 구현](https://github.com/vercel-labs/agent-desktop/blob/main/crates/macos/src/notifications/scan.rs): macOS 알림의 Accessibility 역할 및 속성 확인에 참고.
 - [Kiro Hooks](https://kiro.dev/docs/hooks/), [Hook triggers](https://kiro.dev/docs/hooks/types/)

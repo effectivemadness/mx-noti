@@ -151,7 +151,7 @@ import MXNotiCore
                 switch result {
                 case .success:
                     self.notice = remove ? "\(source.title) 연결을 해제했습니다. 기존 훅은 보존했습니다." :
-                        source == .codex ? "Codex 연결을 추가했습니다. 새 세션에서 설정 → Hooks 또는 /hooks를 열어 MX Noti 훅을 검토하고 허용하세요." :
+                        source == .codex ? "Codex 완료·입력 대기 연결을 추가했습니다. 승인 요청은 데스크톱 앱의 실제 알림으로 감지합니다. 새 훅은 설정 → Hooks 또는 /hooks에서 검토하고 허용하세요." :
                         source == .kiro ? "Kiro CLI 전역 연결을 추가했습니다. IDE는 프로젝트 폴더 연결이 필요합니다." : "\(source.title) 연결을 추가했습니다. 새 세션부터 적용됩니다."
                 case .failure(let error): self.notice = error.localizedDescription
                 }
@@ -238,7 +238,7 @@ struct Dashboard: View {
             VStack(alignment: .leading, spacing: 8) {
                 Label("로컬 처리", systemImage: "lock.shield").font(.system(size: 12, weight: .medium))
                 Text("대화 내용 저장 안 함").font(.system(size: 11)).foregroundStyle(Design.muted)
-                Text("MX MASTER 4  /  v\(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.2.0")").font(.system(size: 9, weight: .medium, design: .monospaced)).foregroundStyle(Design.muted).padding(.top, 10)
+                Text("MX MASTER 4  /  v\(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.2.1")").font(.system(size: 9, weight: .medium, design: .monospaced)).foregroundStyle(Design.muted).padding(.top, 10)
             }
         }.padding(22).frame(width: 170).frame(maxHeight: .infinity).background(.white)
             .overlay(alignment: .trailing) { Rectangle().fill(Design.line).frame(width: 1) }
@@ -361,7 +361,7 @@ struct Dashboard: View {
             }.padding(20).frame(maxWidth: .infinity, alignment: .leading).background(Design.accent.opacity(0.045), in: RoundedRectangle(cornerRadius: 16))
             Toggle("로그인할 때 MX Noti 실행", isOn: Binding(get: { model.loginEnabled }, set: model.setLogin))
                 .font(.system(size: 12)).toggleStyle(.switch).controlSize(.small)
-            Text("연결 시 원본 설정을 백업합니다. Claude Code는 새 세션부터, Codex는 새 훅 검토·허용 후 적용됩니다. Kiro·Crew의 로그 기반 감지는 앱 버전에 따라 달라질 수 있습니다.")
+            Text("연결 시 원본 설정을 백업합니다. Codex 승인 요청은 데스크톱 앱의 실제 알림으로 감지하며 자동 승인 검토 훅은 사용하지 않습니다. 새 훅은 검토·허용이 필요합니다. Kiro·Crew 로그 감지는 앱 버전에 따라 달라질 수 있습니다.")
                 .font(.system(size: 11)).foregroundStyle(Design.muted).fixedSize(horizontal: false, vertical: true)
         }
     }
@@ -406,7 +406,7 @@ struct Dashboard: View {
             return model.desktopState.accessibilityGranted ? "macOS 알림 배너 감지" : "손쉬운 사용 권한 필요"
         case .crew: return model.monitorState.crewFiles > 0 ? "로컬 완료·승인 이벤트 자동 감지" : "Crew 이벤트 기록 없음"
         case .kiro: return model.installed.contains(source) ? "CLI 연결됨 · IDE는 프로젝트별 연결" : "CLI 전역 훅 · IDE 프로젝트 훅"
-        case .codex: return model.installed.contains(source) ? "CLI · 데스크톱 Codex 작업 훅 설정됨" : "CLI · 데스크톱 Codex 작업 훅"
+        case .codex: return model.installed.contains(source) ? "완료·입력 대기 훅 설정됨 · 승인은 앱 알림" : "완료·입력 대기 훅 · 승인은 앱 알림"
         default: return model.installed.contains(source) ? "훅 설정됨 · 새 세션에서 적용" : "완료 · 승인 요청 · 입력 대기"
         }
     }

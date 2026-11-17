@@ -144,4 +144,47 @@ final class CoreTests: XCTestCase {
         let restored = try JSONDecoder().decode(Preferences.self, from: JSONEncoder().encode(preferences))
         XCTAssertFalse(restored.enabledSources.contains(.claudeDesktop)); XCTAssertFalse(restored.desktopNotificationsEnabled)
     }
+
+    func testCodexRawApprovalRequestsNeverProveHumanInputIsRequired() {
+        for mode in ["default", "acceptEdits", "plan", "dontAsk", "bypassPermissions"] {
+            XCTAssertNil(AgentEvent.fromHook(source: .codex, payload: ["hook_event_name": "PermissionRequest", "permission_mode": mode, "tool_name": "Bash"]))
+        }
+        XCTAssertNil(AgentEvent.fromHook(source: .codex, payload: ["hook_event_name": "PermissionRequest"]))
+        XCTAssertNil(AgentEvent.fromHook(source: .codex, payload: ["type": "approval-requested"]))
+        XCTAssertNil(AgentEvent.fromHook(source: .codex, payload: ["hook_event_name": "Notification", "notification_type": "permission_prompt"]))
+        XCTAssertEqual(AgentEvent.fromHook(source: .codex, payload: ["hook_event_name": "Stop"])?.kind, .completed)
+        XCTAssertEqual(AgentEvent.fromHook(source: .codex, payload: ["hook_event_name": "PreToolUse", "tool_name": "request_user_input"])?.kind, .question)
+        XCTAssertEqual(AgentEvent.fromHook(source: .claude, payload: ["hook_event_name": "PermissionRequest"])?.kind, .approval)
+    }
+
+    func testEventGateDropsLegacyCodexApprovalEventsAndKeepsRealAlerts() throws {
+        var gate = EventGate()
+        let preferences = Preferences()
+        XCTAssertFalse(gate.accepts(AgentEvent(source: .codex, kind: .approval, origin: "hook"), preferences: preferences))
+        XCTAssertTrue(gate.accepts(AgentEvent(source: .codex, kind: .completed), preferences: preferences))
+        XCTAssertTrue(gate.accepts(AgentEvent(source: .codex, kind: .question), preferences: preferences))
+        let visiblePrompt = try XCTUnwrap(DesktopNotice(identity: "visible-prompt", application: "ChatGPT", title: "Needs your approval", actions: ["Allow"]).event())
+        XCTAssertTrue(gate.accepts(visiblePrompt, preferences: preferences))
+        XCTAssertTrue(gate.accepts(AgentEvent(source: .claude, kind: .approval), preferences: preferences))
+    }
+
+    func testCodexInstallerRemovesLegacyApprovalHookAndPreservesForeignHooks() throws {
+        let home = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: home) }
+        let url = home.appendingPathComponent(".codex/hooks.json")
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let original = Data(#"{"description":"existing","hooks":{"PermissionRequest":[{"hooks":[{"type":"command","command":"existing-policy"},{"type":"command","command":"'/old/MXNoti' --hook codex # mx-noti-managed"}]}]}}"#.utf8)
+        try original.write(to: url)
+        let installer = IntegrationInstaller(home: home, executable: URL(fileURLWithPath: "/tmp/MXNoti"))
+        let result = try installer.install(.codex)
+        XCTAssertTrue(result.changed)
+        XCTAssertEqual(try Data(contentsOf: URL(fileURLWithPath: XCTUnwrap(result.backup))), original)
+        let root = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
+        let hooks = try XCTUnwrap(root["hooks"] as? [String: [[String: Any]]])
+        let approval = try XCTUnwrap(hooks["PermissionRequest"]?.first?["hooks"] as? [[String: Any]])
+        XCTAssertEqual(approval.count, 1); XCTAssertEqual(approval.first?["command"] as? String, "existing-policy")
+        XCTAssertNotNil(hooks["Stop"]); XCTAssertNotNil(hooks["PreToolUse"])
+        XCTAssertEqual(root["description"] as? String, "existing")
+        XCTAssertFalse(try installer.install(.codex).changed)
+    }
 }

@@ -54,9 +54,9 @@ public struct IntegrationInstaller: Sendable {
                     else { hooks[key] = retainedGroups }
                 }
                 if !remove {
-                    var events: [(String, String?)] = [("Stop", nil), ("PermissionRequest", nil)]
+                    var events: [(String, String?)] = [("Stop", nil)]
                     if source == .claude {
-                        events += [("Notification", "idle_prompt|elicitation_dialog"), ("PreToolUse", "AskUserQuestion"), ("StopFailure", nil)]
+                        events += [("PermissionRequest", nil), ("Notification", "idle_prompt|elicitation_dialog"), ("PreToolUse", "AskUserQuestion"), ("StopFailure", nil)]
                     } else { events += [("PreToolUse", ".*request_user_input.*")] }
                     for (event, matcher) in events {
                         if let groups = hooks[event], !(groups is [[String: Any]]) { throw HIDFailure.message("기존 \(event) 훅 구조를 변경할 수 없어 중단했습니다.") }

@@ -121,6 +121,9 @@ public struct AgentEvent: Codable, Identifiable, Equatable, Sendable {
             kind = ["askuserquestion", "request_user_input", "userinput", "ask_user"].contains(tool) ? .question : .tool
         default: return nil
         }
+        // Codex fires this before approval hooks and the automatic reviewer decide.
+        // It is not evidence that a human was asked. Use a visible desktop alert instead.
+        if source == .codex && kind == .approval { return nil }
         let session = payload["session_id"] as? String ?? payload["thread-id"] as? String
             ?? payload["session_key"] as? String ?? ""
         return AgentEvent(source: source, kind: kind, session: fingerprint(session))
@@ -164,6 +167,8 @@ public struct EventGate {
     private var lastPulse = Date.distantPast
     public init() {}
     public mutating func accepts(_ event: AgentEvent, preferences: Preferences, now: Date = Date()) -> Bool {
+        // Also reject pending events produced by older installed hook executables.
+        if event.source == .codex && event.kind == .approval && event.origin == "hook" { return false }
         guard !preferences.paused, preferences.enabledSources.contains(event.source),
               preferences.enabledEvents.contains(event.kind),
               now.timeIntervalSince(event.date) < 30, event.date.timeIntervalSince(now) < 5 else { return false }
